@@ -15,6 +15,7 @@ use std::thread;
 use std::os::unix::fs::MetadataExt;
 #[cfg(target_family = "windows")]
 use std::os::windows::fs::MetadataExt;
+use log::info;
 
 #[cfg(target_family = "unix")]
 fn file_size(meta: &MetadataExt) -> usize {
@@ -54,7 +55,7 @@ pub(super) fn download_and_extract(
 ) -> Result<(), String> {
     let download_dir = PathBuf::from(base_path);
     if !download_dir.exists() {
-        println!(
+        info!(
             "Download directory {} does not exists. Creating....",
             download_dir.display()
         );
@@ -66,7 +67,7 @@ pub(super) fn download_and_extract(
         })?;
     }
     for archive in ARCHIVES_TO_DOWNLOAD {
-        println!("Attempting to download and extract {}...", archive);
+        info!("Attempting to download and extract {}...", archive);
         download(base_url, &archive, &download_dir, use_fashion_data)?;
         extract(&archive, &download_dir)?;
     }
@@ -85,12 +86,12 @@ fn download(
         let url = Path::new(base_url).join(archive);
         let file_name = download_dir.to_str().unwrap().to_owned() + archive; //.clone();
         if Path::new(&file_name).exists() {
-            println!(
+            info!(
                 "  File {:?} already exists, skipping downloading.",
                 file_name
             );
         } else {
-            println!(
+            info!(
                 "- Downloading from file from {} and saving to file as: {}",
                 url.to_str().unwrap(),
                 file_name
@@ -133,12 +134,12 @@ fn extract(archive_name: &str, download_dir: &Path) -> Result<(), String> {
     let archive = download_dir.join(&archive_name);
     let extract_to = download_dir.join(&archive_name.replace(".gz", ""));
     if extract_to.exists() {
-        println!(
+        info!(
             "  Extracted file {:?} already exists, skipping extraction.",
             extract_to
         );
     } else {
-        println!("Extracting archive {:?} to {:?}...", archive, extract_to);
+        info!("Extracting archive {:?} to {:?}...", archive, extract_to);
         let file_in = fs::File::open(&archive)
             .or_else(|e| Err(format!("Failed to open archive {:?}: {:?}", archive, e)))?;
         let file_in = io::BufReader::new(file_in);

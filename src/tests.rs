@@ -49,8 +49,8 @@ fn test_00() {
     let mnist = MnistBuilder::new().finalize();
     assert!(mnist.trn_img.len() == 60_000 * 28 * 28);
     assert!(mnist.trn_lbl.len() == 60_000);
-    assert!(mnist.val_img.len() == 0);
-    assert!(mnist.val_lbl.len() == 0);
+    assert!(mnist.val_img.is_empty());
+    assert!(mnist.val_lbl.is_empty());
     assert!(mnist.tst_img.len() == 10_000 * 28 * 28);
     assert!(mnist.tst_lbl.len() == 10_000);
     assert!(mnist.trn_lbl[0] == 5);
@@ -205,7 +205,7 @@ fn normalize_vector() {
     let v: Vec<u8> = vec![0, 1, 2, 127, 128, 129, 254, 255];
     let normalized_v: Vec<f32> = normalize_vector(&v);
     let expected: Vec<f32> = vec![
-        0.0, 0.00392157, 0.00784314, 0.49803922, 0.50196078, 0.50588235, 0.99607843, 1.0,
+        0.0, 0.00392157, 0.00784314, 0.49803922, 0.50196078, 0.505_882_3, 0.99607843, 1.0,
     ];
 
     expected

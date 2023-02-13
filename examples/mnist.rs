@@ -63,8 +63,7 @@ fn return_item_description_from_number(val: u8) {
         _ => panic!("An unrecognized label was used..."),
     };
     println!(
-        "Based on the '{}' label, this image should be a: {} ",
-        val, description
+        "Based on the '{val}' label, this image should be a: {description} "
     );
     println!("Hit [ ESC ] to exit...");
 }
