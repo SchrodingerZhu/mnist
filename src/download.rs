@@ -15,10 +15,11 @@ use std::thread;
 use std::os::unix::fs::MetadataExt;
 #[cfg(target_family = "windows")]
 use std::os::windows::fs::MetadataExt;
+use std::time::Duration;
 use log::info;
 
 #[cfg(target_family = "unix")]
-fn file_size(meta: &MetadataExt) -> usize {
+fn file_size(meta: &dyn MetadataExt) -> usize {
     meta.size() as usize
 }
 
@@ -59,26 +60,23 @@ pub(super) fn download_and_extract(
             "Download directory {} does not exists. Creating....",
             download_dir.display()
         );
-        fs::create_dir_all(&download_dir).or_else(|e| {
-            Err(format!(
-                "Failed to create directory {:?}: {:?}",
-                download_dir, e
-            ))
-        })?;
+        fs::create_dir_all(&download_dir).map_err(|e| format!(
+                "Failed to create directory {download_dir:?}: {e:?}"
+            ))?;
     }
     for archive in ARCHIVES_TO_DOWNLOAD {
         info!("Attempting to download and extract {}...", archive);
-        download(base_url, &archive, &download_dir, use_fashion_data)?;
-        extract(&archive, &download_dir)?;
+        download(base_url, archive, &download_dir, use_fashion_data)?;
+        extract(archive, &download_dir)?;
     }
     Ok(())
 }
 
 fn download(
     base_url: &str,
-    archive: &str,
+    _archive: &str,
     download_dir: &Path,
-    use_fashion_data: bool,
+    _use_fashion_data: bool,
 ) -> Result<(), String> {
     let mut easy = Easy::new();
     for i in 0..4 {
@@ -106,17 +104,17 @@ fn download(
                 let mut current_size = 0;
                 while current_size < full_size {
                     let meta = fs::metadata(file_name.clone())
-                        .expect(&format!("Couldn't get metadata on {:?}", file_name));
+                        .unwrap_or_else(|_| panic!("{}", "Couldn't get metadata on {file_name:?}"));
 
                     current_size = file_size(&meta);
 
                     pb.set(current_size.try_into().unwrap());
-                    thread::sleep_ms(10);
+                    thread::sleep(Duration::from_millis(10));
                 }
                 pb.finish_println(" ");
             });
 
-            easy.url(&url.to_str().unwrap()).unwrap();
+            easy.url(url.to_str().unwrap()).unwrap();
             easy.write_function(move |data| {
                 file.write_all(data).unwrap();
                 Ok(data.len())
@@ -131,8 +129,8 @@ fn download(
 }
 
 fn extract(archive_name: &str, download_dir: &Path) -> Result<(), String> {
-    let archive = download_dir.join(&archive_name);
-    let extract_to = download_dir.join(&archive_name.replace(".gz", ""));
+    let archive = download_dir.join(archive_name);
+    let extract_to = download_dir.join(archive_name.replace(".gz", ""));
     if extract_to.exists() {
         info!(
             "  Extracted file {:?} already exists, skipping extraction.",
@@ -140,26 +138,18 @@ fn extract(archive_name: &str, download_dir: &Path) -> Result<(), String> {
         );
     } else {
         info!("Extracting archive {:?} to {:?}...", archive, extract_to);
-        let file_in = fs::File::open(&archive)
-            .or_else(|e| Err(format!("Failed to open archive {:?}: {:?}", archive, e)))?;
+        let file_in = fs::File::open(&archive).map_err(|e| format!("Failed to open archive {archive:?}: {e:?}"))?;
         let file_in = io::BufReader::new(file_in);
-        let file_out = fs::File::create(&extract_to).or_else(|e| {
-            Err(format!(
-                "  Failed to create extracted file {:?}: {:?}",
-                archive, e
-            ))
-        })?;
+        let file_out = fs::File::create(&extract_to).map_err(|e| format!(
+                "  Failed to create extracted file {archive:?}: {e:?}"
+            ))?;
         let mut file_out = io::BufWriter::new(file_out);
         let mut gz = flate2::bufread::GzDecoder::new(file_in);
         let mut v: Vec<u8> = Vec::with_capacity(10 * 1024 * 1024);
-        gz.read_to_end(&mut v)
-            .or_else(|e| Err(format!("Failed to extract archive {:?}: {:?}", archive, e)))?;
-        file_out.write_all(&v).or_else(|e| {
-            Err(format!(
-                "Failed to write extracted data to {:?}: {:?}",
-                archive, e
-            ))
-        })?;
+        gz.read_to_end(&mut v).map_err(|e| format!("Failed to extract archive {archive:?}: {e:?}"))?;
+        file_out.write_all(&v).map_err(|e| format!(
+                "Failed to write extracted data to {archive:?}: {e:?}"
+            ))?;
     }
     Ok(())
 }

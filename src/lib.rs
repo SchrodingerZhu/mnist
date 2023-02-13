@@ -99,7 +99,7 @@ use byteorder::{BigEndian, ReadBytesExt};
 use std::fs::File;
 use std::io::prelude::*;
 use std::path::Path;
-use log::info;
+
 
 static BASE_PATH: &str = "data/";
 static BASE_URL: &str = "http://yann.lecun.com/exdb/mnist";
@@ -402,7 +402,8 @@ impl<'a> MnistBuilder<'a> {
     /// If `trn_len + val_len + tst_len > 70,000`.
     pub fn finalize(&self) -> Mnist {
         if self.download_and_extract {
-            let _base_url = if self.use_fashion_data {
+            #[cfg(feature = "download")]
+            let base_url = if self.use_fashion_data {
                 FASHION_BASE_URL
             } else if self.base_url != BASE_URL {
                 self.base_url
@@ -411,7 +412,7 @@ impl<'a> MnistBuilder<'a> {
             };
 
             #[cfg(feature = "download")]
-            download::download_and_extract(base_url, &self.base_path, self.use_fashion_data)
+            download::download_and_extract(base_url, self.base_path, self.use_fashion_data)
                 .unwrap();
             #[cfg(not(feature = "download"))]
             {
